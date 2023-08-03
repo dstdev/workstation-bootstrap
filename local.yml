@@ -1,0 +1,174 @@
+---
+###########################################################################
+## Documentation                                                         ##
+###########################################################################
+# 
+# Supported Operating Systems:
+#   * Ubuntu 23.04
+#
+#  sudo apt install ansible
+#  ansible-pull -K https://github.com/dstdev/workspace/playbook.yaml -i hosts
+#  reboot
+#
+###########################################################################
+- name: Install and configure DST VM
+  hosts: localhost
+  connection: local
+  vars_prompt:
+    - name: github_email
+      prompt: What is your github email?
+      private: false
+    - name: github_username
+      prompt: What is your Full name for git commits?
+      private: false
+  vars:
+    vscode_extensions:
+      - redhat.ansible
+      - redhat.vscode-yaml
+      - dhoeric.ansible-vault
+      - GitHub.remotehub
+      - jdinhlife.gruvbox
+      - HashiCorp.terraform
+      - ms-python.python
+      - golang.Go
+    required_packages:
+      - git
+      - curl
+      - wget
+      - vim
+      - htop
+      - pre-commit
+      - tmux
+      - awscli
+      - htop
+      - python3-pip
+      - ca-certificates
+      - gnupg
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+      - pipx
+      # - terraform
+    pipx_molecule_packages:
+      - "molecule-plugins[docker]"
+    enable_vim: false
+    ssh_configs: []
+    docker_repo_url: https://download.docker.com/linux
+    docker_apt_repository: "deb [arch=amd64] {{ docker_repo_url }}/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
+    docker_apt_gpg_key: "{{ docker_repo_url }}/{{ ansible_distribution | lower }}/gpg"
+  tasks:
+    - name: Get User home directory
+      ansible.builtin.shell: >
+        set -o pipefail && getent passwd {{ ansible_user_id }} | awk -F: '{ print $6 }'
+      changed_when: false
+      args:
+        executable: /usr/bin/bash
+      register: user_home
+
+    - name: Add Docker apt key
+      ansible.builtin.get_url:
+        url: "{{ docker_apt_gpg_key }}"
+        dest: /etc/apt/trusted.gpg.d/docker.asc
+        mode: "0644"
+        force: true
+      become: true
+
+    - name: Add Docker repository
+      ansible.builtin.apt_repository:
+        repo: "{{ docker_apt_repository }}"
+        state: present
+        update_cache: true
+      become: true
+
+    - name: Install required packages
+      ansible.builtin.package:
+        state: present
+        name: "{{ item }}"
+      become: true
+      loop: "{{ required_packages }}"
+
+    - name: Install ansible in pipx
+      ansible.builtin.command: "python3 -m pipx install --include-deps ansible"
+      changed_when: 
+
+    - name: Install pipx packages
+      ansible.builtin.command: "python3 -m pipx install ansible-lint"
+
+    # This is why we should reboot to make sure user is in docker group
+    - name: Add user to docker group
+      ansible.builtin.user:
+        name: "{{ ansible_user_id }}"
+        groups: docker
+        append: true
+      become: true
+
+    - name: Create Projects folder for repositories
+      ansible.builtin.file:
+        path: Projects
+        state: directory
+        mode: "0755"
+
+    - name: Install vscode deb
+      ansible.builtin.apt:
+
+    - name: Install molecule in pipx
+      ansible.builtin.command: "python3 -m pipx install molecule"
+
+    - name: Install pipx packages
+      ansible.builtin.command: "python3 -m pipx inject molecule {{ ' '.join(pipx_molecule_packages) }}"
+
+    # This is why we should reboot to make sure user is in docker group
+    - name: Add user to docker group
+      ansible.builtin.user:
+        name: "{{ ansible_user_id }}"
+        groups: docker
+        append: true
+      become: true
+
+    - name: Create Projects folder for repositories
+      ansible.builtin.file:
+        path: Projects
+        state: directory
+        mode: "0755"
+
+    - name: Install vscode deb
+      ansible.builtin.apt:
+        deb: https://code.visualstudio.com/sha/download?build=stable&os=linux-deb-x64
+      become: true
+
+    - name: Install code extensions
+      ansible.builtin.command: "code --install-extension {{ item }}"
+      become: false
+      register: result
+      changed_when: result.stdout is not search('is already installed.')
+      loop: "{{ vscode_extensions }}"
+
+    - name: Install vim extension
+      ansible.builtin.command: "code --install-extension vscodevim.vim"
+      become: false
+      register: result
+      changed_when: result.stdout is not search('is already installed.')
+      when: enable_vim
+
+    - name: Configure Git
+      community.general.ini_file:
+        path: "/home/{{ ansible_user_id }}/.gitconfig"
+        section: user
+        option: "{{ item.key }}"
+        value: "{{ item.value }}"
+      loop:
+        - key: email
+          value: "{{ github_email }}"
+        - key: name
+          value: "{{ github_username }}"
+
+    - name: Remove system ansible
+      ansible.builtin.apt:
+        state: absent
+        name:
+          - ansible
+          - ansible-core
+          - ansible-lint
+      become: true
