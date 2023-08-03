@@ -58,8 +58,8 @@
     docker_repo_url: https://download.docker.com/linux
     docker_apt_repository: "deb [arch=amd64] {{ docker_repo_url }}/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
     docker_apt_gpg_key: "{{ docker_repo_url }}/{{ ansible_distribution | lower }}/gpg"
-    github_email: false
-    github_username: false
+    git_email: false
+    git_username: false
   tasks:
     - name: Get User home directory
       ansible.builtin.shell: >
@@ -159,12 +159,12 @@
         section: user
         option: "{{ item.key }}"
         value: "{{ item.value }}"
-      when: github_email and github_username
+      when: git_email and git_username
       loop:
         - key: email
-          value: "{{ github_email }}"
+          value: "{{ git_email }}"
         - key: name
-          value: "{{ github_username }}"
+          value: "{{ git_username }}"
 
     - name: Remove system ansible
       ansible.builtin.apt:
