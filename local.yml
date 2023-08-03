@@ -14,13 +14,6 @@
 - name: Install and configure DST VM
   hosts: localhost
   connection: local
-  #vars_prompt:
-  #  - name: github_email
-  #    prompt: What is your github email?
-  #    private: false
-  #  - name: github_username
-  #    prompt: What is your Full name for git commits?
-  #    private: false
   vars:
     vscode_extensions:
       - redhat.ansible
@@ -59,7 +52,7 @@
     docker_apt_repository: "deb [arch=amd64] {{ docker_repo_url }}/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
     docker_apt_gpg_key: "{{ docker_repo_url }}/{{ ansible_distribution | lower }}/gpg"
     git_email: false
-    git_username: false
+    git_name: false
   tasks:
     - name: Get User home directory
       ansible.builtin.shell: >
@@ -130,7 +123,7 @@
 
     - name: Create Projects folder for repositories
       ansible.builtin.file:
-        path: Projects
+        path: "/home/{{ ansible_user_id }}/Projects"
         state: directory
         mode: "0755"
 
@@ -159,12 +152,12 @@
         section: user
         option: "{{ item.key }}"
         value: "{{ item.value }}"
-      when: git_email and git_username
+      when: git_email and git_name
       loop:
         - key: email
           value: "{{ git_email }}"
         - key: name
-          value: "{{ git_username }}"
+          value: "{{ git_name }}"
 
     - name: Remove system ansible
       ansible.builtin.apt:
