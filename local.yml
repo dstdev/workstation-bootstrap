@@ -12,8 +12,8 @@
 #
 ###########################################################################
 - name: Install and configure DST VM
-  hosts: localhost
-  connection: local
+  hosts: all
+  #connection: local
   vars_prompt:
     - name: github_email
       prompt: What is your github email?
