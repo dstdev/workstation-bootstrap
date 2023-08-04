@@ -29,7 +29,11 @@
       - curl
       - wget
       - vim
+      - neovim
       - htop
+      - nmap
+      - rsync
+      - sshfs
       - pre-commit
       - tmux
       - awscli
@@ -43,7 +47,12 @@
       - docker-buildx-plugin
       - docker-compose-plugin
       - pipx
-      # - terraform
+      - software-properties-common
+      - terraform
+      - network-manager-openconnect
+      - network-manager-openconnect-gnome
+      - globalprotect-openconnect
+      - filezilla
     pipx_molecule_packages:
       - "molecule-plugins[docker]"
     enable_vim: false
@@ -51,8 +60,13 @@
     docker_repo_url: https://download.docker.com/linux
     docker_apt_repository: "deb [arch=amd64] {{ docker_repo_url }}/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
     docker_apt_gpg_key: "{{ docker_repo_url }}/{{ ansible_distribution | lower }}/gpg"
+    terraform_gpg_key: "https://apt.releases.hashicorp.com/gpg"
+    terraform_apt_repository: " deb [arch=amd64] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
     git_email: false
     git_name: false
+    bitwarden_version: 2023.7.1
+    ssh_rsa_private_key: false
+    ssh_ed25519_private_key: false
   tasks:
     - name: Get User home directory
       ansible.builtin.shell: >
@@ -77,6 +91,30 @@
         update_cache: true
       become: true
 
+    - name: Add Terraform apt key
+      ansible.builtin.apt_key:
+        url: "{{ terraform_gpg_key  }}"
+        state: present
+        validate_certs: false
+      become: true
+
+    - name: Add Terraform repository
+      ansible.builtin.apt_repository:
+        repo: "{{ terraform_apt_repository }}"
+        state: present
+        update_cache: true
+      become: true
+
+    - name: Add globalprotect PPA
+      ansible.builtin.apt_repository:
+        repo: 'ppa:yuezk/globalprotect-openconnect'
+      become: true
+
+    - name: Update Apt cache
+      ansible.builtin.apt:
+        update_cache: true
+      become: true
+
     - name: Install required packages
       ansible.builtin.package:
         state: present
@@ -86,9 +124,13 @@
 
     - name: Install ansible in pipx
       ansible.builtin.command: "python3 -m pipx install --include-deps ansible"
+      args:
+        creates: "/home/{{ ansible_user_id }}/.local/bin/ansible"
 
     - name: Install pipx packages
       ansible.builtin.command: "python3 -m pipx install ansible-lint"
+      args:
+        creates: "/home/{{ ansible_user_id }}/.local/bin/ansible-lint"
 
     # This is why we should reboot to make sure user is in docker group
     - name: Add user to docker group
@@ -104,13 +146,12 @@
         state: directory
         mode: "0755"
 
-    - name: Install vscode deb
-      ansible.builtin.apt:
-
     - name: Install molecule in pipx
       ansible.builtin.command: "python3 -m pipx install molecule"
+      args:
+        creates: "/home/{{ ansible_user_id }}/.local/bin/molecule"
 
-    - name: Install pipx packages
+    - name: Install molecule pipx packages
       ansible.builtin.command: "python3 -m pipx inject molecule {{ ' '.join(pipx_molecule_packages) }}"
 
     # This is why we should reboot to make sure user is in docker group
@@ -130,6 +171,11 @@
     - name: Install vscode deb
       ansible.builtin.apt:
         deb: https://code.visualstudio.com/sha/download?build=stable&os=linux-deb-x64
+      become: true
+
+    - name: Install bitwarden deb
+      ansible.builtin.apt:
+        deb: "https://github.com/bitwarden/clients/releases/download/desktop-v{{ bitwarden_version }}/Bitwarden-{{ bitwarden_version }}-amd64.deb"
       become: true
 
     - name: Install code extensions
@@ -158,6 +204,45 @@
           value: "{{ git_email }}"
         - key: name
           value: "{{ git_name }}"
+
+    - name: Setup ssh
+      block:
+        - name: Create ssh directory
+          ansible.builtin.file:
+            path: "/home/{{ ansible_user_id }}/.ssh"
+            state: "directory"
+            mode: "0755"
+
+        - name: Create ssh config.d directory
+          ansible.builtin.file:
+            path: "/home/{{ ansible_user_id }}/.ssh/config.d"
+            state: "directory"
+            mode: "0755"
+
+        - name: Create ssh config file
+          ansible.builtin.lineinfile:
+            path: "/home/{{ ansible_user_id }}/.ssh/config"
+            line: "Include config.d/*"
+            create: yes
+            insertbefore: "BOF"
+
+        - name: Configure rsa private key
+          ansible.builtin.copy:
+            content: "{{ ssh_rsa_private_key }}"
+            dest: "/home/{{ ansible_user_id }}/.ssh/id_rsa"
+            mode: "0600"
+          when: ssh_rsa_private_key
+
+        - name: Configure ed25519 private key
+          ansible.builtin.copy:
+            content: "{{ ssh_ed25519_private_key }}"
+            dest: "/home/{{ ansible_user_id }}/.ssh/id_ed25519"
+            mode: "0600"
+          when: ssh_ed25519_private_key
+
+        - name: Create missing ed25519 ssh private key
+          community.crypto.openssh_keypair:
+            path: "/home/{{ ansible_user_id }}/.ssh/id_ed25519"
 
     - name: Remove system ansible
       ansible.builtin.apt:

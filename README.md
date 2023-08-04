@@ -9,6 +9,11 @@ Supported Operating Systems:
 
 ## Usage
 
+**Pre-requisites**
+
+* git
+* ansible (system install will be removed by playbook after installing latest version)
+
 Below is the basic usage and will get you started.
 
     ansible-pull -U https://github.com/dstdev/workstation-bootstrap -K
@@ -37,3 +42,7 @@ Then reference the file when executing ansible-pull.
 | enable_vim | Install vim extension in vscode |
 | git_email | Email to identify you with git commits. Required for pushing to github |
 | git_name | Nice name identify you with git commits. Required for pushing to github |
+| ssh_rsa_private_key | |
+| ssh_rsa_public_key | |
+| ssh_ed25519_private_key | |
+| ssh_ed25519_public_key | |
