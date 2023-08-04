@@ -141,23 +141,28 @@
 
     - name: Install Pipx packages
       block:
+        - name: Get installed pipx packages
+          ansible.builtin.command: pipx list --include-injected
+          changed_when: false
+          register: pipx_packages
+
         - name: Install ansible in pipx
           ansible.builtin.command: "python3 -m pipx install --include-deps ansible"
           args:
             creates: "/home/{{ ansible_user_id }}/.local/bin/ansible"
 
         - name: Install pipx packages
-          ansible.builtin.command: "python3 -m pipx install ansible-lint"
+          ansible.builtin.command: "python3 -m pipx inject --include-apps ansible ansible-lint"
           args:
             creates: "/home/{{ ansible_user_id }}/.local/bin/ansible-lint"
 
         - name: Install molecule in pipx
-          ansible.builtin.command: "python3 -m pipx install molecule"
+          ansible.builtin.command: "python3 -m pipx inject --include-apps ansible molecule"
           args:
             creates: "/home/{{ ansible_user_id }}/.local/bin/molecule"
 
-        - name: Install molecule pipx packages
-          ansible.builtin.command: "python3 -m pipx inject molecule {{ ' '.join(pipx_molecule_packages) }}"
+        - name: Install molecule in pipx
+          ansible.builtin.command: "python3 -m pipx inject ansible {{ ' '.join(pipx_molecule_packages) }}"
 
     # This is why we should reboot to make sure user is in docker group
     - name: Create Projects folder for repositories
@@ -240,7 +245,6 @@
             dest: "/home/{{ ansible_user_id }}/.ssh/id_rsa.pub"
             mode: "0600"
           when: ssh_rsa_public_key
-
 
         - name: Configure ed25519 private key
           ansible.builtin.copy:
