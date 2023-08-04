@@ -2,7 +2,7 @@
 ###########################################################################
 ## Documentation                                                         ##
 ###########################################################################
-# 
+#
 # Supported Operating Systems:
 #   * Ubuntu 23.04
 #
@@ -48,12 +48,12 @@
       - rsync
       - software-properties-common
       - sshfs
+      - terminator
       - terraform
       - tmux
       - vim
       - wget
-    pipx_molecule_packages:
-      - "molecule-plugins[docker]"
+      - zsh
     enable_vim: false
     ssh_configs: []
     docker_repo_url: https://download.docker.com/linux
@@ -94,7 +94,7 @@
 
     - name: Add Terraform apt key
       ansible.builtin.apt_key:
-        url: "{{ terraform_gpg_key  }}"
+        url: "{{ terraform_gpg_key }}"
         state: present
         validate_certs: false
       become: true
@@ -156,13 +156,22 @@
           args:
             creates: "/home/{{ ansible_user_id }}/.local/bin/ansible-lint"
 
+        - name: Install cookiecutter in pipx
+          ansible.builtin.command: "python3 -m pipx inject --include-apps ansible cookiecutter"
+          args:
+            creates: "/home/{{ ansible_user_id }}/.local/bin/cookiecutter"
+
         - name: Install molecule in pipx
           ansible.builtin.command: "python3 -m pipx inject --include-apps ansible molecule"
           args:
             creates: "/home/{{ ansible_user_id }}/.local/bin/molecule"
 
-        - name: Install molecule in pipx
-          ansible.builtin.command: "python3 -m pipx inject ansible {{ ' '.join(pipx_molecule_packages) }}"
+        - name: Install molecule plugins in pipx
+          ansible.builtin.command: "python3 -m pipx inject ansible molecule-plugins[docker]"
+          args:
+            creates: "/home/{{ ansible_user_id }}/.local/pipx/venvs/ansible/lib/\
+                     python{{ ansible_python['version']['major'] }}.{{ ansible_python['version']['minor'] }}/\
+                     site-packages/molecule_plugins/__init__.py"
 
     # This is why we should reboot to make sure user is in docker group
     - name: Create Projects folder for repositories
@@ -204,6 +213,7 @@
         section: user
         option: "{{ item.key }}"
         value: "{{ item.value }}"
+        mode: "0644"
       when: git_email and git_name
       loop:
         - key: email
@@ -229,8 +239,9 @@
           ansible.builtin.lineinfile:
             path: "/home/{{ ansible_user_id }}/.ssh/config"
             line: "Include config.d/*"
-            create: yes
+            create: true
             insertbefore: "BOF"
+            mode: "0755"
 
         - name: Configure rsa private key
           ansible.builtin.copy:
