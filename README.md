@@ -46,6 +46,9 @@ Notes:
     * wget
     * vscode
     * bitwarden
+    * terminator
+    * cookiecutter
+    * zsh
 * Installs the following vscode extensions
     * redhat.ansible
     * redhat.vscode-yaml
