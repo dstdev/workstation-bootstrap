@@ -24,6 +24,7 @@
       - HashiCorp.terraform
       - ms-python.python
       - golang.Go
+      - darkriszty.markdown-table-prettify
     required_packages:
       - awscli
       - ca-certificates
@@ -34,6 +35,7 @@
       - docker-ce-cli
       - docker-compose-plugin
       - filezilla
+      - fzf
       - git
       - globalprotect-openconnect
       - gnupg
@@ -53,6 +55,7 @@
       - tmux
       - vim
       - wget
+      - x2goclient
       - zsh
     enable_vim: false
     ssh_configs: []
@@ -68,6 +71,11 @@
     ssh_rsa_public_key: false
     ssh_ed25519_private_key: false
     ssh_ed25519_public_key: false
+    vscode_default_settings:
+      redhat.telemetry.enabled: false
+      git.openRepositoryInParentFolders: "always"
+      files.dialog.defaultPath: "/home/{{ ansible_user_id }}/Repos"
+
   tasks:
     - name: Get User home directory
       ansible.builtin.shell: >
@@ -174,9 +182,9 @@
                      site-packages/molecule_plugins/__init__.py"
 
     # This is why we should reboot to make sure user is in docker group
-    - name: Create Projects folder for repositories
+    - name: Create Repos folder for repositories
       ansible.builtin.file:
-        path: "/home/{{ ansible_user_id }}/Projects"
+        path: "/home/{{ ansible_user_id }}/Repos"
         state: directory
         mode: "0755"
 
@@ -206,6 +214,13 @@
           register: result
           changed_when: result.stdout is not search('is already installed.')
           when: enable_vim
+
+        - name: Set default vscode setting
+          ansible.builtin.copy:
+            content: "{{ vscode_default_settings | to_json }}"
+            dest: "/home/{{ ansible_user_id }}/.config/Code/User/settings.json"
+            mode: "0664"
+            force: false
 
     - name: Configure Git
       community.general.ini_file:
@@ -276,6 +291,31 @@
             path: "/home/{{ ansible_user_id }}/.ssh/id_ed25519"
             type: ed25519
           when: not ssh_ed25519_private_key
+
+        - name: Create ssh configs
+          ansible.builtin.template:
+            src: templates/dstssh.j2
+            dest: "/home/{{ ansible_user_id }}/.ssh/config.d/dst"
+            mode: "0600"
+
+    - name: Configure Shells
+      block:
+        - name: Add fzf to bashrc
+          ansible.builtin.lineinfile:
+            path: "/home/{{ ansible_user_id }}/.bashrc"
+            line: "source /usr/share/doc/fzf/examples/key-bindings.bash"
+            create: true
+            mode: "0644"
+
+        - name: Add fzf to zshrc
+          ansible.builtin.lineinfile:
+            path: "/home/{{ ansible_user_id }}/.zshrc"
+            line: "source {{ item }}"
+            create: true
+            mode: "0644"
+          loop:
+            - "/usr/share/doc/fzf/examples/completion.zsh"
+            - "/usr/share/doc/fzf/examples/key-bindings.zsh"
 
     - name: Remove system ansible
       ansible.builtin.apt:

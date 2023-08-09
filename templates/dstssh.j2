@@ -1,0 +1,15 @@
+{% for entry in ssh_config_entries %}
+Host {{entry.host}}
+    HostName {{entry.hostname}}
+    User {{entry.user}}
+    {% if 'port' in entry %}
+    Port {{entry.port}}
+    {% endif %}
+    {% if 'identity_file' in entry %}
+    IdentityFile {{user_home}}/.ssh/{{entry.identity_file}}
+    {% endif %}
+    {% if 'jumpbox' in entry %}
+    ProxyJump {{entry.proxyjump}}
+    {% endif %}
+
+{% endfor %}

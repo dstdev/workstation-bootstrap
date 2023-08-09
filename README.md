@@ -29,6 +29,7 @@ Notes:
     * curl
     * docker
     * filezilla
+    * fzf
     * git
     * globalprotect-openconnect
     * htop
@@ -60,6 +61,7 @@ Notes:
     * golang.Go
 * Configures Git
 * Configures SSH Client
+* Create "Repos" folder for storing git repositories
 
 ## Adding reuseable variables
 
