@@ -21,6 +21,12 @@ Below is the basic usage and will get you started.
 Notes:
 * If you have passwordless sudo enabled, run without the `-K`
 
+**Tag**
+
+| Tag | Description             |
+|-----|-------------------------|
+| ssh | Only update ssh configs |
+
 ## What this playbook does
 
 * Installs the following packages:

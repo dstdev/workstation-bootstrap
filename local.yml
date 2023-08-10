@@ -237,6 +237,7 @@
           value: "{{ git_name }}"
 
     - name: Setup ssh
+      tags: ssh
       block:
         - name: Create ssh directory
           ansible.builtin.file:
@@ -297,6 +298,7 @@
             src: templates/dstssh.j2
             dest: "/home/{{ ansible_user_id }}/.ssh/config.d/dst"
             mode: "0600"
+            trim_blocks: false
 
     - name: Configure Shells
       block:

@@ -2,14 +2,13 @@
 Host {{entry.host}}
     HostName {{entry.hostname}}
     User {{entry.user}}
-    {% if 'port' in entry %}
+    {%- if 'port' in entry %}
     Port {{entry.port}}
-    {% endif %}
-    {% if 'identity_file' in entry %}
+    {%- endif %}
+    {%- if 'identity_file' in entry %}
     IdentityFile {{user_home}}/.ssh/{{entry.identity_file}}
-    {% endif %}
-    {% if 'jumpbox' in entry %}
+    {%- endif %}
+    {%- if 'proxyjump' in entry %}
     ProxyJump {{entry.proxyjump}}
-    {% endif %}
-
+    {%- endif %}
 {% endfor %}
