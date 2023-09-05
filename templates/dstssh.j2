@@ -6,7 +6,7 @@ Host {{entry.host}}
     Port {{entry.port}}
     {%- endif %}
     {%- if 'identity_file' in entry %}
-    IdentityFile {{user_home}}/.ssh/{{entry.identity_file}}
+    IdentityFile /home/{{ ansible_user_id }}/.ssh/{{entry.identity_file}}
     {%- endif %}
     {%- if 'proxyjump' in entry %}
     ProxyJump {{entry.proxyjump}}

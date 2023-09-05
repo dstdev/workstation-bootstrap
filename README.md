@@ -101,3 +101,12 @@ However it will be recommended to configure these for more effective usage.
 | ssh_rsa_public_key | Contents of rsa public key |
 | ssh_ed25519_private_key | Contents of ed25519 private key (Generated automatically if blank|
 | ssh_ed25519_public_key | Contents of ed25519 public key |
+| extra_ssh_keys | A list of key, name values for extra ssh keys to add |
+
+## Development
+
+Required:
+
+    ansible-galaxy collection install community.general
+    ansible-galaxy collection install community.crypto
+    pre-commit install

@@ -25,6 +25,7 @@
       - ms-python.python
       - golang.Go
       - darkriszty.markdown-table-prettify
+      - sumneko.lua
     required_packages:
       - awscli
       - ca-certificates
@@ -75,6 +76,7 @@
       redhat.telemetry.enabled: false
       git.openRepositoryInParentFolders: "always"
       files.dialog.defaultPath: "/home/{{ ansible_user_id }}/Repos"
+    vpn_connections: []
 
   tasks:
     - name: Get User home directory
@@ -181,6 +183,18 @@
                      python{{ ansible_python['version']['major'] }}.{{ ansible_python['version']['minor'] }}/\
                      site-packages/molecule_plugins/__init__.py"
 
+        - name: Install pynetbox plugins in pipx
+          ansible.builtin.command: "python3 -m pipx inject ansible pynetbox pytz"
+          args:
+            creates: "/home/{{ ansible_user_id }}/.local/pipx/venvs/ansible/lib/\
+                     python{{ ansible_python['version']['major'] }}.{{ ansible_python['version']['minor'] }}/\
+                     site-packages/pynetbox/__init__.py"
+
+        - name: Install detect secrets in pipx
+          ansible.builtin.command: "python3 -m pipx install detect-secrets"
+          args:
+            creates: "/home/{{ ansible_user_id }}/.local/bin/detect-secrets"
+
     # This is why we should reboot to make sure user is in docker group
     - name: Create Repos folder for repositories
       ansible.builtin.file:
@@ -188,10 +202,25 @@
         state: directory
         mode: "0755"
 
-    - name: Install bitwarden deb
-      ansible.builtin.apt:
-        deb: "https://github.com/bitwarden/clients/releases/download/desktop-v{{ bitwarden_version }}/Bitwarden-{{ bitwarden_version }}-amd64.deb"
-      become: true
+    - name: Install Bitwarden
+      tags:
+        - bitwarden
+      block:
+        - name: Install bitwarden deb
+          ansible.builtin.apt:
+            deb: "https://github.com/bitwarden/clients/releases/download/desktop-v{{ bitwarden_version }}/Bitwarden-{{ bitwarden_version }}-amd64.deb"
+          become: true
+
+        - name: Install bitwarden cli
+          become: true
+          ansible.builtin.unarchive:
+            src: https://vault.bitwarden.com/download/?app=cli&platform=linux
+            dest: /usr/local/bin
+            remote_src: true
+
+        - name: Configure bitwarden cli
+          ansible.builtin.command: "bw config server https://bw.datainscience.com"
+          changed_when: false
 
     - name: Configure VSCode
       block:
@@ -293,6 +322,13 @@
             type: ed25519
           when: not ssh_ed25519_private_key
 
+        - name: Add extra ssh keys
+          ansible.builtin.copy:
+            content: "{{ item.key }}"
+            dest: "/home/{{ ansible_user_id }}/.ssh/{{ item.name }}"
+            mode: "0600"
+          loop: "{{ extra_ssh_keys }}"
+
         - name: Create ssh configs
           ansible.builtin.template:
             src: templates/dstssh.j2
@@ -318,6 +354,68 @@
           loop:
             - "/usr/share/doc/fzf/examples/completion.zsh"
             - "/usr/share/doc/fzf/examples/key-bindings.zsh"
+
+    - name: Configure AWS Credentials
+      tags:
+        - aws
+      when: "aws_configs | length > 0 and aws_credentials | length > 0"
+      block:
+        - name: Create .aws directory
+          ansible.builtin.file:
+            path: "/home/{{ ansible_user_id }}/.aws"
+            state: directory
+            mode: "0700"
+
+        - name: Create aws configuration
+          community.general.ini_file:
+            path: "/home/{{ ansible_user_id }}/.aws/config"
+            section: "{{ item.section }}"
+            option: "{{ item.option }}"
+            value: "{{ item.value }}"
+            mode: "0600"
+          loop: "{{ aws_configs }}"
+
+        - name: Create aws credentials
+          community.general.ini_file:
+            path: "/home/{{ ansible_user_id }}/.aws/credentials"
+            section: "{{ item.section }}"
+            option: "{{ item.option }}"
+            value: "{{ item.value }}"
+            mode: "0600"
+          loop: "{{ aws_credentials }}"
+
+    - name: Configure VPNS
+      tags:
+        - vpn
+      when: "vpn_connections | length > 0"
+      block:
+        - name: Get VPN Status
+          ansible.builtin.shell: >
+            nmcli -t -f name,state connection
+          register: vpnstate
+          changed_when: false
+          become: true
+
+        - name: Add nmcli vpn connection
+          ansible.builtin.command: "{{ item.connector }}"
+          when: "item.name not in vpnstate.stdout"
+          changed_when: false
+          loop: "{{ vpn_connections }}"
+          become: true
+
+    # - name: Configure AWS
+    #   tags:
+    #     - aws
+    #   when: true
+    #   block:
+    #     - name: Create AWS Directory
+    #       ansible.builtin.file:
+    #         path: "/home/{{ ansible_user_id }}/.aws"
+    #         state: directory
+    #         mode: "0700"
+    #         owner: "{{ ansible_user _id }}"
+    #         group: "{{ ansible_user _id }}"
+
 
     - name: Remove system ansible
       ansible.builtin.apt:
