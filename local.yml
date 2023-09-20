@@ -48,6 +48,7 @@
       - pipx
       - pre-commit
       - python3-pip
+      - rclone
       - rsync
       - software-properties-common
       - sshfs
@@ -77,6 +78,7 @@
       git.openRepositoryInParentFolders: "always"
       files.dialog.defaultPath: "/home/{{ ansible_user_id }}/Repos"
     vpn_connections: []
+    shellrc_extra_lines: []
 
   tasks:
     - name: Get User home directory
@@ -126,6 +128,16 @@
         update_cache: true
       changed_when: false
       become: true
+
+    - name: Remove unattended upgrades
+      ansible.builtin.apt:
+        state: absent
+        name: "{{ item }}"
+      become: true
+      loop: 
+        - unattended-upgrades
+        - unattended-notifier
+        - update-manager
 
     - name: Install required packages
       ansible.builtin.package:
@@ -194,6 +206,14 @@
           ansible.builtin.command: "python3 -m pipx install detect-secrets"
           args:
             creates: "/home/{{ ansible_user_id }}/.local/bin/detect-secrets"
+
+        - name: Add pipx path to bashrc
+          ansible.builtin.lineinfile:
+            path: "/home/{{ ansible_user_id }}/.bashrc"
+            line: "export PATH=\"$PATH:/home/akail/.local/bin\""
+            create: true
+            insertafter: "EOF"
+            mode: "0755"
 
     # This is why we should reboot to make sure user is in docker group
     - name: Create Repos folder for repositories
@@ -355,6 +375,25 @@
             - "/usr/share/doc/fzf/examples/completion.zsh"
             - "/usr/share/doc/fzf/examples/key-bindings.zsh"
 
+        - name: Add aliases to bashrc
+          ansible.builtin.lineinfile:
+            path: "/home/{{ ansible_user_id }}/.bashrc"
+            line: "{{ item }}"
+            create: true
+            insertafter: "EOF"
+            mode: "0755"
+          loop: "{{ shellrc_extra_lines }}"
+
+        - name: Add aliases to bashrc
+          ansible.builtin.lineinfile:
+            path: "/home/{{ ansible_user_id }}/.wzshrcashrc"
+            line: "{{ item }}"
+            create: true
+            insertafter: "EOF"
+            mode: "0755"
+          loop: "{{ shellrc_extra_lines }}"
+
+
     - name: Configure AWS Credentials
       tags:
         - aws
@@ -402,20 +441,6 @@
           changed_when: false
           loop: "{{ vpn_connections }}"
           become: true
-
-    # - name: Configure AWS
-    #   tags:
-    #     - aws
-    #   when: true
-    #   block:
-    #     - name: Create AWS Directory
-    #       ansible.builtin.file:
-    #         path: "/home/{{ ansible_user_id }}/.aws"
-    #         state: directory
-    #         mode: "0700"
-    #         owner: "{{ ansible_user _id }}"
-    #         group: "{{ ansible_user _id }}"
-
 
     - name: Remove system ansible
       ansible.builtin.apt:
