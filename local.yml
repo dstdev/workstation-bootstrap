@@ -60,7 +60,8 @@
       - x2goclient
       - zsh
     enable_vim: false
-    ssh_configs: []
+    ssh_config_entries: []
+    extra_ssh_keys: []
     docker_repo_url: https://download.docker.com/linux
     docker_apt_repository: "deb [arch=amd64] {{ docker_repo_url }}/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
     docker_apt_gpg_key: "{{ docker_repo_url }}/{{ ansible_distribution | lower }}/gpg"
@@ -79,7 +80,6 @@
       files.dialog.defaultPath: "/home/{{ ansible_user_id }}/Repos"
     vpn_connections: []
     shellrc_extra_lines: []
-    extra_ssh_keys: []
 
   tasks:
     - name: Get User home directory
