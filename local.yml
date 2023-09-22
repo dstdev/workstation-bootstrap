@@ -79,6 +79,7 @@
       files.dialog.defaultPath: "/home/{{ ansible_user_id }}/Repos"
     vpn_connections: []
     shellrc_extra_lines: []
+    extra_ssh_keys: []
 
   tasks:
     - name: Get User home directory
