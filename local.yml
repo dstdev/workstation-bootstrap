@@ -80,6 +80,8 @@
       files.dialog.defaultPath: "/home/{{ ansible_user_id }}/Repos"
     vpn_connections: []
     shellrc_extra_lines: []
+    aws_configs: []
+    aws_credentials: []
 
   tasks:
     - name: Get User home directory
